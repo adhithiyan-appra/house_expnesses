@@ -16,7 +16,13 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { getTotals } from '../lib/calculations';
-import { cn, formatINR, formatLongDate, todayISO } from '../lib/format';
+import {
+  cn,
+  formatINR,
+  formatLongDate,
+  formatShortDate,
+  todayISO,
+} from '../lib/format';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -135,10 +141,6 @@ export default function Layout({ children }: { children: ReactNode }) {
     ) ?? navItems[0];
 
   useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
-
-  useEffect(() => {
     if (!mobileOpen) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -199,12 +201,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <CalendarDays className="hidden h-4 w-4 sm:block" />
               <span className="hidden sm:inline">{formatLongDate(todayISO())}</span>
-              <span className="sm:hidden">
-                {new Date().toLocaleDateString('en-IN', {
-                  day: '2-digit',
-                  month: 'short',
-                })}
-              </span>
+              <span className="sm:hidden">{formatShortDate(todayISO())}</span>
             </div>
           </div>
         </header>

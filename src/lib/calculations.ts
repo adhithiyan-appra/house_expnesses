@@ -139,8 +139,8 @@ export function getMonthlyTotals(data: TrackerData, count = 6): MonthlyTotal[] {
   });
 }
 
-export function getUnifiedExpenses(data: TrackerData): UnifiedExpense[] {
-  const labour: UnifiedExpense[] = data.labour.map((item) => ({
+export function labourToUnified(item: LabourRecord): UnifiedExpense {
+  return {
     id: item.id,
     type: 'labour',
     date: item.date,
@@ -152,9 +152,11 @@ export function getUnifiedExpenses(data: TrackerData): UnifiedExpense[] {
     balance: item.balance,
     notes: item.notes,
     record: item,
-  }));
+  };
+}
 
-  const materials: UnifiedExpense[] = data.materials.map((item) => ({
+export function materialToUnified(item: MaterialRecord): UnifiedExpense {
+  return {
     id: item.id,
     type: 'material',
     date: item.date,
@@ -166,9 +168,11 @@ export function getUnifiedExpenses(data: TrackerData): UnifiedExpense[] {
     balance: item.balance,
     notes: item.notes,
     record: item,
-  }));
+  };
+}
 
-  const others: UnifiedExpense[] = data.others.map((item) => ({
+export function otherToUnified(item: OtherRecord): UnifiedExpense {
+  return {
     id: item.id,
     type: 'other',
     date: item.date,
@@ -180,7 +184,13 @@ export function getUnifiedExpenses(data: TrackerData): UnifiedExpense[] {
     balance: 0,
     notes: item.notes,
     record: item,
-  }));
+  };
+}
+
+export function getUnifiedExpenses(data: TrackerData): UnifiedExpense[] {
+  const labour = data.labour.map(labourToUnified);
+  const materials = data.materials.map(materialToUnified);
+  const others = data.others.map(otherToUnified);
 
   return [...labour, ...materials, ...others].sort((a, b) => {
     if (a.date !== b.date) return b.date.localeCompare(a.date);
