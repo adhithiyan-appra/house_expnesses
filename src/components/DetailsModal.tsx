@@ -42,7 +42,7 @@ export default function DetailsModal({ expense, onClose }: DetailsModalProps) {
       subtitle={`${typeLabels[expense.type]} · ${formatDisplayDate(expense.date)}`}
       footer={
         <div className="flex justify-end">
-          <button type="button" className={btnSecondary} onClick={onClose}>
+          <button type="button" className={cn(btnSecondary, 'w-full sm:w-auto justify-center')} onClick={onClose}>
             Close
           </button>
         </div>
@@ -63,7 +63,12 @@ export default function DetailsModal({ expense, onClose }: DetailsModalProps) {
         <div>
           {record.type === 'labour' && (
             <>
-              <DetailRow label="Labour type" value={record.labourType} />
+              <DetailRow label="Employee" value={record.employeeName || '—'} />
+              <DetailRow label="Labour category" value={record.labourType} />
+              <DetailRow
+                label="Work completed"
+                value={record.workDescription || '—'}
+              />
               <DetailRow label="Workers" value={String(record.workers)} />
               <DetailRow label="Daily wage" value={formatINR(record.dailyWage)} />
               <DetailRow label="Working days" value={String(record.workingDays)} />

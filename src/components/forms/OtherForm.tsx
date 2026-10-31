@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import type { OtherRecord, PaymentMethod } from '../../types';
 import { PAYMENT_METHODS } from '../../constants';
-import { useApp } from '../../context/AppContext';
-import { cn, toNumber, todayISO } from '../../lib/format';
+import { useApp } from '../../context/appContext';
+import { cn, toNumber, todayISO, uid } from '../../lib/format';
 import {
   btnPrimary,
   btnSecondary,
@@ -31,16 +31,24 @@ export default function OtherForm({ initial, onClose }: OtherFormProps) {
   );
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [requestId] = useState(uid);
+  const submittingRef = useRef(false);
 
   const amountValue = toNumber(amount);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (submittingRef.current) return;
 
     if (!date) return setError('Please select a date.');
     if (!name.trim()) return setError('Please enter an expense name.');
     if (!category.trim()) return setError('Please enter a category.');
     if (amountValue <= 0) return setError('Amount must be greater than zero.');
+
+    submittingRef.current = true;
+    setSaving(true);
+    setError('');
 
     const draft = {
       date,
@@ -52,12 +60,18 @@ export default function OtherForm({ initial, onClose }: OtherFormProps) {
       notes,
     };
 
-    if (initial) {
-      updateOther(initial.id, draft);
-    } else {
-      addOther(draft);
+    const saved = initial
+      ? updateOther(initial.id, draft)
+      : addOther(draft, requestId);
+
+    if (saved) {
+      onClose();
+      return;
     }
-    onClose();
+
+    submittingRef.current = false;
+    setSaving(false);
+    setError('This expense could not be saved. Please try again.');
   };
 
   return (
@@ -67,12 +81,17 @@ export default function OtherForm({ initial, onClose }: OtherFormProps) {
       title={initial ? 'Edit expense' : 'Add other expense'}
       subtitle="Track food, tea, water, rent, and other site costs."
       footer={
-        <div className="flex justify-end gap-2">
-          <button type="button" className={btnSecondary} onClick={onClose}>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <button type="button" className={cn(btnSecondary, 'w-full sm:w-auto justify-center')} onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="other-form" className={btnPrimary}>
-            {initial ? 'Save changes' : 'Add expense'}
+          <button
+            type="submit"
+            form="other-form"
+            className={cn(btnPrimary, 'w-full sm:w-auto justify-center', saving && 'cursor-not-allowed opacity-60')}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : initial ? 'Save changes' : 'Add expense'}
           </button>
         </div>
       }

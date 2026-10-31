@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import EmptyState from '../components/EmptyState';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/appContext';
 import type {
   DateRange,
   LabourRecord,
@@ -658,45 +658,46 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className={cn(cardClass, 'mb-5 grid grid-cols-2 divide-slate-100 sm:grid-cols-4 sm:divide-x')}>
-        <div className="p-4">
-          <p className="text-xs text-slate-500">Records</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">{report.summary.count}</p>
+      {/* Summary KPI grid (2 cols on mobile, 4 on desktop) */}
+      <div className={cn(cardClass, 'mb-5 grid grid-cols-2 divide-y sm:divide-y-0 sm:grid-cols-4 sm:divide-x divide-slate-100')}>
+        <div className="p-3 sm:p-4">
+          <p className="text-xs text-slate-500 font-medium">Records</p>
+          <p className="mt-1 text-base sm:text-lg font-bold text-slate-900">{report.summary.count}</p>
         </div>
-        <div className="p-4">
-          <p className="text-xs text-slate-500">Total</p>
-          <p className="mt-1 text-lg font-semibold text-slate-900">
+        <div className="p-3 sm:p-4">
+          <p className="text-xs text-slate-500 font-medium">Total Cost</p>
+          <p className="mt-1 text-base sm:text-lg font-bold text-slate-900">
             {formatINR(report.summary.total)}
           </p>
         </div>
-        <div className="p-4">
-          <p className="text-xs text-slate-500">Paid</p>
-          <p className="mt-1 text-lg font-semibold text-emerald-600">
+        <div className="p-3 sm:p-4">
+          <p className="text-xs text-slate-500 font-medium">Amount Paid</p>
+          <p className="mt-1 text-base sm:text-lg font-bold text-emerald-600">
             {formatINR(report.summary.paid)}
           </p>
         </div>
-        <div className="p-4">
-          <p className="text-xs text-slate-500">Pending</p>
-          <p className="mt-1 text-lg font-semibold text-rose-600">
+        <div className="p-3 sm:p-4">
+          <p className="text-xs text-slate-500 font-medium">Pending</p>
+          <p className="mt-1 text-base sm:text-lg font-bold text-rose-600">
             {formatINR(report.summary.pending)}
           </p>
         </div>
       </div>
 
       <div className={cardClass}>
-        <div className="flex flex-col gap-2 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 border-b border-slate-100 p-3 sm:p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-slate-900">{report.meta.title}</h2>
             <p className="text-xs text-slate-500">{report.meta.description}</p>
           </div>
           <button
             type="button"
-            className={btnSecondary}
+            className={cn(btnSecondary, 'w-full sm:w-auto justify-center')}
             onClick={handleDownload}
             disabled={report.rows.length === 0}
           >
             <Download className="h-4 w-4" />
-            Export
+            Export CSV
           </button>
         </div>
 
@@ -707,42 +708,84 @@ export default function Reports() {
             description="Add expenses or choose a different date range to generate this report."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-[860px] w-full border-collapse">
-              <thead className={tableHeadClass}>
-                <tr>
-                  {report.columns.map((column) => (
-                    <th
-                      key={column.header}
-                      className={cn(
-                        'px-4 py-3',
-                        column.align === 'right' && 'text-right',
+          <>
+            {/* MOBILE CARD VIEW (Screens < sm) */}
+            <div className="divide-y divide-slate-100 sm:hidden">
+              {report.rows.map((row) => (
+                <div key={row.id} className="p-3.5 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900">
+                        {row.description ?? row.supplier ?? 'Record'}
+                      </p>
+                      {row.date && (
+                        <p className="text-xs text-slate-500">
+                          {formatDisplayDate(row.date)}
+                        </p>
                       )}
-                    >
-                      {column.header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {report.rows.map((row) => (
-                  <tr key={row.id} className="transition hover:bg-slate-50/70">
+                    </div>
+                    {row.total !== undefined && (
+                      <p className="text-sm font-bold text-slate-900">{formatINR(row.total)}</p>
+                    )}
+                  </div>
+
+                  {/* Key Row Metrics */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-2 text-xs">
+                    {row.paid !== undefined && (
+                      <span>Paid: <span className="font-semibold text-emerald-600">{formatINR(row.paid)}</span></span>
+                    )}
+                    {row.pending !== undefined && (
+                      <span>Pending: <span className={cn('font-semibold', row.pending > 0 ? 'text-rose-600' : 'text-emerald-600')}>{formatINR(row.pending)}</span></span>
+                    )}
+                    {row.workers !== undefined && (
+                      <span>Workers: <span className="font-medium text-slate-700">{row.workers} ({row.days}d)</span></span>
+                    )}
+                    {row.quantity !== undefined && (
+                      <span>Qty: <span className="font-medium text-slate-700">{row.quantity} {row.unit}</span></span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* DESKTOP TABLE VIEW (Screens >= sm) */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead className={tableHeadClass}>
+                  <tr>
                     {report.columns.map((column) => (
-                      <td
+                      <th
                         key={column.header}
                         className={cn(
-                          tableCellClass,
+                          'px-4 py-3',
                           column.align === 'right' && 'text-right',
                         )}
                       >
-                        {column.render(row)}
-                      </td>
+                        {column.header}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {report.rows.map((row) => (
+                    <tr key={row.id} className="transition hover:bg-slate-50/70">
+                      {report.columns.map((column) => (
+                        <td
+                          key={column.header}
+                          className={cn(
+                            tableCellClass,
+                            column.align === 'right' && 'text-right',
+                          )}
+                        >
+                          {column.render(row)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </>

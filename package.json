@@ -11,21 +11,17 @@
   },
   "dependencies": {
     "date-fns": "^4.4.0",
-    "jspdf": "^4.2.1",
-    "jspdf-autotable": "^5.0.9",
     "lucide-react": "^1.65.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
-    "recharts": "^3.10.1",
-    "uuid": "^14.0.3"
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.89.0",
     "tailwindcss": "^4.3.3",

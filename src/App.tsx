@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { AppProvider } from './context/AppContext';
+import { AppProvider } from './context/AppProvider';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import Dashboard from './pages/Dashboard';

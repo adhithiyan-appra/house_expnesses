@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/appContext';
 import { getTotals } from '../lib/calculations';
 import { cn, formatINR, toNumber } from '../lib/format';
 import {
@@ -101,7 +101,7 @@ export default function Budget() {
               Dashboard and budget totals update automatically as expenses change.
             </p>
           </div>
-          <button type="submit" className={btnPrimary}>
+          <button type="submit" className={cn(btnPrimary, 'w-full sm:w-auto justify-center')}>
             <Save className="h-4 w-4" />
             Save Budget
           </button>
@@ -109,7 +109,7 @@ export default function Budget() {
         {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:grid-cols-4">
         <StatCard
           label="Total Budget"
           value={formatINR(data.totalBudget)}

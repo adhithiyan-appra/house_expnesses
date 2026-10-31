@@ -144,9 +144,11 @@ export function labourToUnified(item: LabourRecord): UnifiedExpense {
     id: item.id,
     type: 'labour',
     date: item.date,
-    description: `${item.labourType} · ${item.workers} worker${item.workers === 1 ? '' : 's'} · ${item.workingDays} day${item.workingDays === 1 ? '' : 's'}`,
+    description:
+      item.workDescription ||
+      `${item.labourType} · ${item.workers} worker${item.workers === 1 ? '' : 's'} · ${item.workingDays} day${item.workingDays === 1 ? '' : 's'}`,
     category: item.labourType,
-    person: '',
+    person: item.employeeName,
     totalAmount: item.totalAmount,
     amountPaid: item.amountPaid,
     balance: item.balance,

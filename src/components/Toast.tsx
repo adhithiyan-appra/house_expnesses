@@ -1,5 +1,5 @@
 import { CheckCircle2, CircleAlert, Info } from 'lucide-react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/appContext';
 import { cn } from '../lib/format';
 
 export default function Toast() {

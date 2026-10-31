@@ -31,29 +31,36 @@ export default function StatCard({
   valueClassName,
 }: StatCardProps) {
   return (
-    <div className={cn(cardClass, 'p-4 sm:p-5')}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-slate-500">{label}</p>
+    <div className={cn(cardClass, 'p-3 sm:p-5 flex flex-col justify-between')}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wide text-slate-500 sm:text-xs">
+            {label}
+          </p>
           <p
             className={cn(
-              'mt-1.5 truncate text-xl font-bold tracking-tight text-slate-900 sm:text-2xl',
+              'mt-1 truncate text-lg font-bold tracking-tight text-slate-900 sm:mt-1.5 sm:text-2xl',
               valueClassName,
             )}
+            title={value}
           >
             {value}
           </p>
         </div>
         <div
           className={cn(
-            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9',
             toneClasses[tone],
           )}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
         </div>
       </div>
-      {subtext && <p className="mt-2 truncate text-xs text-slate-500">{subtext}</p>}
+      {subtext && (
+        <p className="mt-1.5 truncate text-[11px] text-slate-500 sm:mt-2 sm:text-xs">
+          {subtext}
+        </p>
+      )}
     </div>
   );
 }

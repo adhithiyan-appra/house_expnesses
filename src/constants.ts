@@ -3,13 +3,19 @@ import type { PaymentMethod } from './types';
 export const STORAGE_KEY = 'house-construction-tracker-v1';
 
 export const DEFAULT_LABOUR_TYPES = [
-  'Maasthiri (மேஸ்திரி)',
-  'Sithaal (சித்தாள்)',
+  'Mason / Master (Mastheeri)',
+  'Mason helper',
+  'General construction labour',
   'Carpenter',
   'Electrician',
   'Plumber',
   'Painter',
-  'Other',
+  'Steel / Rod worker',
+  'Shuttering worker',
+  'Tile worker',
+  'Roofing worker',
+  'Waterproofing worker',
+  'Other / Custom labour',
 ];
 
 export const DEFAULT_MATERIAL_TYPES = [

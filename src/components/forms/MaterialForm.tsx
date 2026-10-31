@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Calculator } from 'lucide-react';
 import type { MaterialRecord } from '../../types';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/appContext';
 import { calcMaterialTotal, roundMoney } from '../../lib/calculations';
-import { cn, formatINR, toNumber, todayISO } from '../../lib/format';
+import { cn, formatINR, toNumber, todayISO, uid, uniqueStrings } from '../../lib/format';
 import {
   btnPrimary,
   btnSecondary,
@@ -19,7 +19,7 @@ interface MaterialFormProps {
 }
 
 export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
-  const { addMaterial, updateMaterial, materialTypes, units } = useApp();
+  const { data, addMaterial, updateMaterial, materialTypes, units } = useApp();
   const [date, setDate] = useState(initial?.date ?? todayISO());
   const [materialName, setMaterialName] = useState(
     initial?.materialName ?? materialTypes[0] ?? '',
@@ -40,6 +40,13 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
   const [supplier, setSupplier] = useState(initial?.supplier ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [requestId] = useState(uid);
+  const submittingRef = useRef(false);
+
+  const suppliers = uniqueStrings(
+    data.materials.map((record) => record.supplier).filter(Boolean),
+  );
 
   const quantityValue = toNumber(quantity);
   const priceValue = toNumber(pricePerUnit);
@@ -50,6 +57,7 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (submittingRef.current) return;
 
     if (!date) return setError('Please select a date.');
     if (!materialName.trim()) return setError('Please enter a material name.');
@@ -59,6 +67,10 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
     if (transportValue < 0) return setError('Transportation charges cannot be negative.');
     if (paid < 0) return setError('Amount paid cannot be negative.');
     if (paid > total) return setError('Amount paid cannot be greater than the total amount.');
+
+    submittingRef.current = true;
+    setSaving(true);
+    setError('');
 
     const draft = {
       date,
@@ -72,12 +84,18 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
       notes,
     };
 
-    if (initial) {
-      updateMaterial(initial.id, draft);
-    } else {
-      addMaterial(draft);
+    const saved = initial
+      ? updateMaterial(initial.id, draft)
+      : addMaterial(draft, requestId);
+
+    if (saved) {
+      onClose();
+      return;
     }
-    onClose();
+
+    submittingRef.current = false;
+    setSaving(false);
+    setError('This expense could not be saved. Please try again.');
   };
 
   return (
@@ -87,12 +105,17 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
       title={initial ? 'Edit material expense' : 'Add material expense'}
       subtitle="Record purchases, transport costs, and supplier balances."
       footer={
-        <div className="flex justify-end gap-2">
-          <button type="button" className={btnSecondary} onClick={onClose}>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <button type="button" className={cn(btnSecondary, 'w-full sm:w-auto justify-center')} onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="material-form" className={btnPrimary}>
-            {initial ? 'Save changes' : 'Add expense'}
+          <button
+            type="submit"
+            form="material-form"
+            className={cn(btnPrimary, 'w-full sm:w-auto justify-center', saving && 'cursor-not-allowed opacity-60')}
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : initial ? 'Save changes' : 'Add expense'}
           </button>
         </div>
       }
@@ -119,11 +142,18 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
             <input
               id="material-supplier"
               type="text"
+              list="material-supplier-options"
               value={supplier}
               onChange={(event) => setSupplier(event.target.value)}
               className={inputClass}
               placeholder="Optional"
+              autoComplete="off"
             />
+            <datalist id="material-supplier-options">
+              {suppliers.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
           </div>
         </div>
 

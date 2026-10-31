@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 import Modal from './Modal';
+import { cn } from '../lib/format';
 import { btnDanger, btnSecondary } from '../lib/styles';
 
 interface ConfirmDialogProps {
@@ -26,11 +27,11 @@ export default function ConfirmDialog({
       onClose={onClose}
       size="sm"
       footer={
-        <div className="flex justify-end gap-2">
-          <button type="button" className={btnSecondary} onClick={onClose}>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <button type="button" className={cn(btnSecondary, 'w-full sm:w-auto justify-center')} onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className={btnDanger} onClick={onConfirm}>
+          <button type="button" className={cn(btnDanger, 'w-full sm:w-auto justify-center')} onClick={onConfirm}>
             {confirmLabel}
           </button>
         </div>

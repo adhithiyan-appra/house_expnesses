@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../lib/format';
@@ -20,6 +20,9 @@ const sizeClasses = {
   xl: 'max-w-4xl',
 };
 
+let nextModalId = 0;
+const modalStack: number[] = [];
+
 export default function Modal({
   isOpen,
   title,
@@ -29,11 +32,22 @@ export default function Modal({
   footer,
   size = 'lg',
 }: ModalProps) {
+  const [modalId] = useState(() => {
+    nextModalId += 1;
+    return nextModalId;
+  });
+
   useEffect(() => {
     if (!isOpen) return;
 
+    modalStack.push(modalId);
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (
+        event.key === 'Escape' &&
+        modalStack[modalStack.length - 1] === modalId
+      ) {
+        onClose();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
@@ -42,9 +56,11 @@ export default function Modal({
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
+      const index = modalStack.lastIndexOf(modalId);
+      if (index >= 0) modalStack.splice(index, 1);
       document.body.style.overflow = previousOverflow;
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, modalId]);
 
   if (!isOpen) return null;
 

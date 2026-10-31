@@ -8,11 +8,41 @@ export type PaymentMethod =
   | 'Card'
   | 'Other';
 
+export interface Employee {
+  id: string;
+  name: string;
+  mobile: string;
+  labourType: string;
+  dailyWage: number;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EmployeeDraft {
+  name: string;
+  mobile: string;
+  labourType: string;
+  dailyWage: number;
+  notes: string;
+}
+
+export interface DailyNote {
+  id: string;
+  date: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LabourRecord {
   id: string;
   type: 'labour';
   date: string;
+  employeeId: string;
+  employeeName: string;
   labourType: string;
+  workDescription: string;
   workers: number;
   dailyWage: number;
   workingDays: number;
@@ -25,7 +55,10 @@ export interface LabourRecord {
 
 export interface LabourDraft {
   date: string;
+  employeeId: string;
+  employeeName: string;
   labourType: string;
+  workDescription: string;
   workers: number;
   dailyWage: number;
   workingDays: number;
@@ -92,6 +125,8 @@ export interface TrackerData {
   labour: LabourRecord[];
   materials: MaterialRecord[];
   others: OtherRecord[];
+  employees: Employee[];
+  dailyNotes: DailyNote[];
   customLabourTypes: string[];
   customMaterialTypes: string[];
   customExpenseCategories: string[];

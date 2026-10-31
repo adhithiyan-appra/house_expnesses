@@ -21,17 +21,17 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../context/appContext';
 import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_LABOUR_TYPES,
   DEFAULT_MATERIAL_TYPES,
   DEFAULT_UNITS,
 } from '../constants';
-import type { TrackerData } from '../types';
 import {
   parseBackup,
   serializeData,
+  type BackupParseResult,
 } from '../lib/storage';
 import { cn } from '../lib/format';
 import { downloadJSON, fileStamp } from '../lib/csv';
@@ -51,8 +51,8 @@ interface ListManagerProps {
   defaults: string[];
   custom: string[];
   placeholder: string;
-  onAdd: (value: string) => void;
-  onRemove: (value: string) => void;
+  onAdd: (value: string) => boolean;
+  onRemove: (value: string) => boolean;
 }
 
 function ListManager({
@@ -83,9 +83,10 @@ function ListManager({
       return;
     }
 
-    onAdd(trimmed);
-    setValue('');
-    setError('');
+    if (onAdd(trimmed)) {
+      setValue('');
+      setError('');
+    }
   };
 
   return (
@@ -174,7 +175,7 @@ export default function Settings() {
     notify,
   } = useApp();
   const [projectName, setProjectName] = useState(data.projectName);
-  const [pendingRestore, setPendingRestore] = useState<TrackerData | null>(null);
+  const [pendingRestore, setPendingRestore] = useState<BackupParseResult | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -186,6 +187,20 @@ export default function Settings() {
     }
     updateProject({ projectName });
   };
+
+  const existingRecordCount =
+    data.labour.length +
+    data.materials.length +
+    data.others.length +
+    data.employees.length +
+    data.dailyNotes.length;
+  const restoreMessage = pendingRestore
+    ? [
+        `This will replace the current ${existingRecordCount} record(s), custom options, and project settings with ${pendingRestore.recordCount} record(s) from the selected backup.`,
+        ...pendingRestore.warnings,
+        'Continue?',
+      ].join(' ')
+    : '';
 
   const handleBackup = () => {
     downloadJSON(
@@ -213,12 +228,11 @@ export default function Settings() {
 
   const handleRestoreConfirm = () => {
     if (!pendingRestore) return;
-    replaceData(pendingRestore);
-    setPendingRestore(null);
+    if (replaceData(pendingRestore.data)) setPendingRestore(null);
   };
 
   const handleClear = () => {
-    clearAllData();
+    if (!clearAllData()) return;
     setProjectName('My House Construction');
     setClearOpen(false);
   };
@@ -259,7 +273,7 @@ export default function Settings() {
                   placeholder="My House Construction"
                 />
               </div>
-              <button type="submit" className={btnPrimary}>
+              <button type="submit" className={cn(btnPrimary, 'w-full sm:w-auto justify-center')}>
                 <Save className="h-4 w-4" />
                 Save
               </button>
@@ -376,6 +390,14 @@ export default function Settings() {
                 <span>Other records</span>
                 <span className="font-medium text-slate-700">{data.others.length}</span>
               </div>
+              <div className="flex justify-between py-0.5">
+                <span>Employees</span>
+                <span className="font-medium text-slate-700">{data.employees.length}</span>
+              </div>
+              <div className="flex justify-between py-0.5">
+                <span>Daily notes</span>
+                <span className="font-medium text-slate-700">{data.dailyNotes.length}</span>
+              </div>
             </div>
           </div>
 
@@ -406,7 +428,7 @@ export default function Settings() {
       <ConfirmDialog
         isOpen={Boolean(pendingRestore)}
         title="Restore backup?"
-        message="This will replace all current records, categories, and project settings with the selected backup."
+        message={restoreMessage}
         confirmLabel="Restore"
         onConfirm={handleRestoreConfirm}
         onClose={() => setPendingRestore(null)}
@@ -415,7 +437,7 @@ export default function Settings() {
       <ConfirmDialog
         isOpen={clearOpen}
         title="Clear all data?"
-        message="Every labour, material, and other expense will be permanently deleted from this browser. Download a backup first if you want to keep a copy."
+        message="Every labour, material, and other expense, saved employee, and daily note will be permanently deleted from this browser. Download a backup first if you want to keep a copy."
         confirmLabel="Clear everything"
         onConfirm={handleClear}
         onClose={() => setClearOpen(false)}
