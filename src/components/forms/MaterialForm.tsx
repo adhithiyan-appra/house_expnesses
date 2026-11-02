@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Calculator } from 'lucide-react';
-import type { MaterialRecord } from '../../types';
+import type { MaterialCategory, MaterialRecord } from '../../types';
 import { useApp } from '../../context/appContext';
 import { calcMaterialTotal, roundMoney } from '../../lib/calculations';
 import { cn, formatINR, toNumber, todayISO, uid, uniqueStrings } from '../../lib/format';
@@ -11,7 +11,10 @@ import {
   inputClass,
   labelClass,
 } from '../../lib/styles';
+import ConfirmDialog from '../ConfirmDialog';
+import MaterialSelect from '../MaterialSelect';
 import Modal from '../Modal';
+import MaterialCategoryForm from './MaterialCategoryForm';
 
 interface MaterialFormProps {
   initial?: MaterialRecord | null;
@@ -19,11 +22,23 @@ interface MaterialFormProps {
 }
 
 export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
-  const { data, addMaterial, updateMaterial, materialTypes, units } = useApp();
+  const {
+    data,
+    addMaterial,
+    updateMaterial,
+    deleteMaterialCategory,
+    notify,
+    units,
+  } = useApp();
   const [date, setDate] = useState(initial?.date ?? todayISO());
   const [materialName, setMaterialName] = useState(
-    initial?.materialName ?? materialTypes[0] ?? '',
+    initial?.materialName ?? data.materialCategories[0]?.name ?? '',
   );
+  const [categoryDialog, setCategoryDialog] = useState<
+    { mode: 'add' } | { mode: 'edit'; category: MaterialCategory } | null
+  >(null);
+  const [deletingCategory, setDeletingCategory] =
+    useState<MaterialCategory | null>(null);
   const [quantity, setQuantity] = useState(
     initial ? String(initial.quantity) : '',
   );
@@ -48,6 +63,46 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
     data.materials.map((record) => record.supplier).filter(Boolean),
   );
 
+  const handleCategorySaved = (category: MaterialCategory) => {
+    if (!categoryDialog) return;
+    if (
+      categoryDialog.mode === 'add' ||
+      materialName.toLowerCase() === categoryDialog.category.name.toLowerCase()
+    ) {
+      setMaterialName(category.name);
+    }
+  };
+
+  const requestDeleteCategory = (category: MaterialCategory) => {
+    const referenced = data.materials.filter(
+      (record) =>
+        record.materialName.toLowerCase() === category.name.toLowerCase(),
+    ).length;
+    if (referenced > 0) {
+      notify(
+        `This material is used by ${referenced} purchase record${
+          referenced === 1 ? '' : 's'
+        }. Delete or reassign those purchases first.`,
+        'error',
+      );
+      return;
+    }
+    setDeletingCategory(category);
+  };
+
+  const handleDeleteCategory = () => {
+    if (!deletingCategory) return;
+    const remaining = data.materialCategories.filter(
+      (category) => category.id !== deletingCategory.id,
+    );
+    if (deleteMaterialCategory(deletingCategory.id)) {
+      if (materialName.toLowerCase() === deletingCategory.name.toLowerCase()) {
+        setMaterialName(remaining[0]?.name ?? '');
+      }
+      setDeletingCategory(null);
+    }
+  };
+
   const quantityValue = toNumber(quantity);
   const priceValue = toNumber(pricePerUnit);
   const transportValue = toNumber(transportation);
@@ -60,7 +115,7 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
     if (submittingRef.current) return;
 
     if (!date) return setError('Please select a date.');
-    if (!materialName.trim()) return setError('Please enter a material name.');
+    if (!materialName.trim()) return setError('Please select a material.');
     if (quantityValue <= 0) return setError('Quantity must be greater than zero.');
     if (!unit.trim()) return setError('Please enter a unit.');
     if (priceValue < 0) return setError('Price per unit cannot be negative.');
@@ -99,10 +154,11 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
   };
 
   return (
-    <Modal
-      isOpen
-      onClose={onClose}
-      title={initial ? 'Edit material expense' : 'Add material expense'}
+    <>
+      <Modal
+        isOpen
+        onClose={onClose}
+        title={initial ? 'Edit material expense' : 'Add material expense'}
       subtitle="Record purchases, transport costs, and supplier balances."
       footer={
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
@@ -161,24 +217,18 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
           <label htmlFor="material-name" className={labelClass}>
             Material name
           </label>
-          <input
+          <MaterialSelect
             id="material-name"
-            list="material-name-options"
             value={materialName}
-            onChange={(event) => setMaterialName(event.target.value)}
-            className={inputClass}
-            placeholder="Select or type a material"
-            autoComplete="off"
-            required
+            categories={data.materialCategories}
+            onChange={(name) => {
+              setMaterialName(name);
+              setError('');
+            }}
+            onAdd={() => setCategoryDialog({ mode: 'add' })}
+            onEdit={(category) => setCategoryDialog({ mode: 'edit', category })}
+            onDelete={requestDeleteCategory}
           />
-          <datalist id="material-name-options">
-            {materialTypes.map((type) => (
-              <option key={type} value={type} />
-            ))}
-          </datalist>
-          <p className={helpClass}>
-            Pick a default or type a new one. New materials are saved automatically.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -312,12 +362,32 @@ export default function MaterialForm({ initial, onClose }: MaterialFormProps) {
           </div>
         </div>
 
-        {error && (
-          <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {error}
-          </p>
-        )}
-      </form>
-    </Modal>
+          {error && (
+            <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {error}
+            </p>
+          )}
+        </form>
+      </Modal>
+
+      {categoryDialog && (
+        <MaterialCategoryForm
+          initial={
+            categoryDialog.mode === 'edit' ? categoryDialog.category : null
+          }
+          onClose={() => setCategoryDialog(null)}
+          onSaved={handleCategorySaved}
+        />
+      )}
+
+      <ConfirmDialog
+        isOpen={Boolean(deletingCategory)}
+        title="Delete custom material"
+        message={`Remove "${deletingCategory?.name ?? ''}" from the material dropdown? This custom material is not used by any purchase record.`}
+        confirmLabel="Delete material"
+        onConfirm={handleDeleteCategory}
+        onClose={() => setDeletingCategory(null)}
+      />
+    </>
   );
 }

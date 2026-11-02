@@ -25,7 +25,6 @@ import { useApp } from '../context/appContext';
 import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_LABOUR_TYPES,
-  DEFAULT_MATERIAL_TYPES,
   DEFAULT_UNITS,
 } from '../constants';
 import {
@@ -168,6 +167,8 @@ export default function Settings() {
   const {
     data,
     updateProject,
+    addMaterialCategory,
+    deleteMaterialCategory,
     addCustomValue,
     removeCustomValue,
     replaceData,
@@ -187,6 +188,13 @@ export default function Settings() {
     }
     updateProject({ projectName });
   };
+
+  const defaultMaterialNames = data.materialCategories
+    .filter((category) => category.isDefault)
+    .map((category) => category.name);
+  const customMaterialNames = data.materialCategories
+    .filter((category) => !category.isDefault)
+    .map((category) => category.name);
 
   const existingRecordCount =
     data.labour.length +
@@ -308,11 +316,16 @@ export default function Settings() {
                 title="Material names"
                 description="Used when adding material purchases."
                 icon={<Package className="h-4 w-4" />}
-                defaults={DEFAULT_MATERIAL_TYPES}
-                custom={data.customMaterialTypes}
+                defaults={defaultMaterialNames}
+                custom={customMaterialNames}
                 placeholder="e.g. Tiles"
-                onAdd={(value) => addCustomValue('material', value)}
-                onRemove={(value) => removeCustomValue('material', value)}
+                onAdd={(value) => Boolean(addMaterialCategory(value))}
+                onRemove={(value) => {
+                  const category = data.materialCategories.find(
+                    (item) => !item.isDefault && item.name === value,
+                  );
+                  return category ? deleteMaterialCategory(category.id) : false;
+                }}
               />
               <ListManager
                 title="Expense categories"

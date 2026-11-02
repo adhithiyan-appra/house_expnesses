@@ -10,6 +10,7 @@ import type {
   DailyNote,
   Employee,
   LabourRecord,
+  MaterialCategory,
   MaterialRecord,
   OtherRecord,
   PaymentMethod,
@@ -67,11 +68,79 @@ export function createDefaultData(): TrackerData {
     others: [],
     employees: [],
     dailyNotes: [],
+    materialCategories: createDefaultMaterialCategories(),
     customLabourTypes: [],
-    customMaterialTypes: [],
     customExpenseCategories: [],
     customUnits: [],
   };
+}
+
+function createDefaultMaterialCategories(): MaterialCategory[] {
+  return DEFAULT_MATERIAL_TYPES.map((name, index) => ({
+    id: `material-default-${index + 1}`,
+    name,
+    isDefault: true,
+  }));
+}
+
+function materialCategoryId(name: string, usedIds: Set<string>): string {
+  const base =
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'custom';
+  let id = `material-custom-${base}`;
+  let suffix = 2;
+  while (usedIds.has(id)) {
+    id = `material-custom-${base}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(id);
+  return id;
+}
+
+function sanitizeMaterialCategories(
+  rawCategories: unknown,
+  legacyCustom: unknown,
+  materials: MaterialRecord[],
+): MaterialCategory[] {
+  const result = createDefaultMaterialCategories();
+  const names = new Set(result.map((category) => category.name.toLowerCase()));
+  const usedIds = new Set(result.map((category) => category.id));
+
+  const append = (nameValue: unknown, idValue?: unknown) => {
+    const name = asString(nameValue).trim();
+    const lower = name.toLowerCase();
+    if (!name || names.has(lower)) return;
+
+    const candidate = asString(idValue).trim();
+    let id: string;
+    if (candidate && !usedIds.has(candidate)) {
+      usedIds.add(candidate);
+      id = candidate;
+    } else {
+      id = materialCategoryId(name, usedIds);
+    }
+
+    names.add(lower);
+    result.push({ id, name, isDefault: false });
+  };
+
+  if (Array.isArray(rawCategories)) {
+    rawCategories.forEach((raw) => {
+      if (!raw || typeof raw !== 'object') return;
+      const category = raw as Record<string, unknown>;
+      append(category.name, category.id);
+    });
+  }
+
+  if (Array.isArray(legacyCustom)) {
+    legacyCustom.forEach((name) => append(name));
+  }
+
+  materials.forEach((material) => append(material.materialName));
+
+  return result;
 }
 
 function asString(value: unknown, fallback = ''): string {
@@ -317,6 +386,7 @@ function isTrackerLike(raw: unknown): raw is Record<string, unknown> {
     'others',
     'employees',
     'dailyNotes',
+    'materialCategories',
     'totalBudget',
     'projectName',
     'customLabourTypes',
@@ -383,13 +453,14 @@ function normalizeDataInternal(raw: unknown): {
       others,
       employees,
       dailyNotes,
+      materialCategories: sanitizeMaterialCategories(
+        source.materialCategories,
+        source.customMaterialTypes,
+        materials,
+      ),
       customLabourTypes: sanitizeCustomList(
         source.customLabourTypes,
         DEFAULT_LABOUR_TYPES,
-      ),
-      customMaterialTypes: sanitizeCustomList(
-        source.customMaterialTypes,
-        DEFAULT_MATERIAL_TYPES,
       ),
       customExpenseCategories: sanitizeCustomList(
         source.customExpenseCategories,
@@ -465,7 +536,16 @@ export function loadData(): LoadResult {
   let recoveryKey: string | undefined;
   let warning: string | undefined;
 
-  if (stats.droppedRecords > 0 || stats.repairedIds > 0 || stats.generatedIds > 0) {
+  const source = parsed as Record<string, unknown>;
+  const needsMaterialCategoryMigration = !Array.isArray(source.materialCategories);
+  const hasNormalizationIssues =
+    stats.droppedRecords > 0 || stats.repairedIds > 0 || stats.generatedIds > 0;
+
+  if (needsMaterialCategoryMigration && !hasNormalizationIssues) {
+    saveData(data);
+  }
+
+  if (hasNormalizationIssues) {
     recoveryKey = preserveRecoveryCopy(raw) ?? undefined;
 
     const details: string[] = [];

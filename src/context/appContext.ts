@@ -4,6 +4,7 @@ import type {
   Employee,
   EmployeeDraft,
   LabourDraft,
+  MaterialCategory,
   MaterialDraft,
   OtherDraft,
   TrackerData,
@@ -39,6 +40,9 @@ export interface AppContextValue {
   addMaterial: (draft: MaterialDraft, requestId?: string) => boolean;
   updateMaterial: (id: string, draft: MaterialDraft) => boolean;
   deleteMaterial: (id: string) => boolean;
+  addMaterialCategory: (name: string) => MaterialCategory | null;
+  updateMaterialCategory: (id: string, name: string) => MaterialCategory | null;
+  deleteMaterialCategory: (id: string) => boolean;
   addOther: (draft: OtherDraft, requestId?: string) => boolean;
   updateOther: (id: string, draft: OtherDraft) => boolean;
   deleteOther: (id: string) => boolean;

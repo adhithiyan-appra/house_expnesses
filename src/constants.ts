@@ -26,6 +26,9 @@ export const DEFAULT_MATERIAL_TYPES = [
   'Salli / Blue Metal (ஜல்லி)',
   'Steel / Rods',
   'Gravel',
+  'Stone',
+  'Binding Wire',
+  'Water',
   'Other',
 ];
 

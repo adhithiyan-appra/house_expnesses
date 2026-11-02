@@ -66,6 +66,12 @@ export interface LabourDraft {
   notes: string;
 }
 
+export interface MaterialCategory {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
 export interface MaterialRecord {
   id: string;
   type: 'material';
@@ -127,8 +133,8 @@ export interface TrackerData {
   others: OtherRecord[];
   employees: Employee[];
   dailyNotes: DailyNote[];
+  materialCategories: MaterialCategory[];
   customLabourTypes: string[];
-  customMaterialTypes: string[];
   customExpenseCategories: string[];
   customUnits: string[];
 }
@@ -175,4 +181,4 @@ export interface DateRange {
 
 export type RangePreset = 'all' | 'today' | 'week' | 'month' | 'year' | 'custom';
 
-export type CustomListKind = 'labour' | 'material' | 'expense' | 'unit';
+export type CustomListKind = 'labour' | 'expense' | 'unit';

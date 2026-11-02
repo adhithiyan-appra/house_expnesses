@@ -9,7 +9,6 @@ import {
 import {
   DEFAULT_EXPENSE_CATEGORIES,
   DEFAULT_LABOUR_TYPES,
-  DEFAULT_MATERIAL_TYPES,
   DEFAULT_UNITS,
 } from '../constants';
 import type {
@@ -19,6 +18,7 @@ import type {
   EmployeeDraft,
   LabourDraft,
   LabourRecord,
+  MaterialCategory,
   MaterialDraft,
   MaterialRecord,
   OtherDraft,
@@ -52,14 +52,12 @@ interface ProjectUpdate {
 
 const CUSTOM_KEY: Record<CustomListKind, keyof TrackerData> = {
   labour: 'customLabourTypes',
-  material: 'customMaterialTypes',
   expense: 'customExpenseCategories',
   unit: 'customUnits',
 };
 
 const DEFAULT_VALUES: Record<CustomListKind, string[]> = {
   labour: DEFAULT_LABOUR_TYPES,
-  material: DEFAULT_MATERIAL_TYPES,
   expense: DEFAULT_EXPENSE_CATEGORIES,
   unit: DEFAULT_UNITS,
 };
@@ -187,6 +185,7 @@ function nextRecordId(previous: TrackerData): string {
     ...previous.others.map((item) => item.id),
     ...previous.employees.map((item) => item.id),
     ...previous.dailyNotes.map((item) => item.id),
+    ...previous.materialCategories.map((item) => item.id),
   ]);
   let id = uid();
   while (used.has(id)) id = uid();
@@ -250,8 +249,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const materialTypes = useMemo(
-    () => uniqueStrings([...DEFAULT_MATERIAL_TYPES, ...data.customMaterialTypes]),
-    [data.customMaterialTypes],
+    () => uniqueStrings(data.materialCategories.map((category) => category.name)),
+    [data.materialCategories],
   );
 
   const expenseCategories = useMemo(
@@ -641,6 +640,141 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [commit, notify],
   );
 
+  const addMaterialCategory = useCallback(
+    (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) {
+        notify('Please enter a material name.', 'error');
+        return null;
+      }
+
+      const lower = trimmed.toLowerCase();
+      if (
+        dataRef.current.materialCategories.some(
+          (category) => category.name.toLowerCase() === lower,
+        )
+      ) {
+        notify('This material already exists.', 'error');
+        return null;
+      }
+
+      const category: MaterialCategory = {
+        id: nextRecordId(dataRef.current),
+        name: trimmed,
+        isDefault: false,
+      };
+
+      const saved = commit((previous) => {
+        if (
+          previous.materialCategories.some(
+            (item) => item.name.toLowerCase() === lower,
+          )
+        ) {
+          return null;
+        }
+
+        return {
+          ...previous,
+          materialCategories: [...previous.materialCategories, category],
+        };
+      }, 'Material added');
+
+      return saved ? category : null;
+    },
+    [commit, notify],
+  );
+
+  const updateMaterialCategory = useCallback(
+    (id: string, name: string) => {
+      const category = dataRef.current.materialCategories.find((item) => item.id === id);
+      if (!category) {
+        notify('Material was not found.', 'error');
+        return null;
+      }
+      if (category.isDefault) {
+        notify('Default materials cannot be renamed.', 'error');
+        return null;
+      }
+
+      const trimmed = name.trim();
+      if (!trimmed) {
+        notify('Please enter a material name.', 'error');
+        return null;
+      }
+      if (trimmed === category.name) return category;
+
+      const lower = trimmed.toLowerCase();
+      if (
+        dataRef.current.materialCategories.some(
+          (item) => item.id !== id && item.name.toLowerCase() === lower,
+        )
+      ) {
+        notify('This material already exists.', 'error');
+        return null;
+      }
+
+      const updated: MaterialCategory = { ...category, name: trimmed };
+      const saved = commit((previous) => {
+        const existing = previous.materialCategories.find((item) => item.id === id);
+        if (!existing || existing.isDefault) return null;
+
+        const oldName = existing.name.toLowerCase();
+        return {
+          ...previous,
+          materialCategories: previous.materialCategories.map((item) =>
+            item.id === id ? updated : item,
+          ),
+          materials: previous.materials.map((item) =>
+            item.materialName.toLowerCase() === oldName
+              ? { ...item, materialName: trimmed }
+              : item,
+          ),
+        };
+      }, 'Material renamed');
+
+      return saved ? updated : null;
+    },
+    [commit, notify],
+  );
+
+  const deleteMaterialCategory = useCallback(
+    (id: string) => {
+      const category = dataRef.current.materialCategories.find((item) => item.id === id);
+      if (!category) {
+        notify('Material was not found.', 'error');
+        return false;
+      }
+      if (category.isDefault) {
+        notify('Default materials cannot be deleted.', 'error');
+        return false;
+      }
+
+      const referenced = dataRef.current.materials.filter(
+        (item) => item.materialName.toLowerCase() === category.name.toLowerCase(),
+      ).length;
+      if (referenced > 0) {
+        notify(
+          `This material is used by ${referenced} purchase record${
+            referenced === 1 ? '' : 's'
+          }. Delete or reassign those purchases first.`,
+          'error',
+        );
+        return false;
+      }
+
+      return commit(
+        (previous) => ({
+          ...previous,
+          materialCategories: previous.materialCategories.filter(
+            (item) => item.id !== id,
+          ),
+        }),
+        'Material deleted',
+      );
+    },
+    [commit, notify],
+  );
+
   const addMaterial = useCallback(
     (draft: MaterialDraft, requestId?: string) => {
       if (requestId && processedAddRequests.current.has(requestId)) return true;
@@ -648,6 +782,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const validationError = validateMaterialDraft(draft);
       if (validationError) {
         notify(validationError, 'error');
+        return false;
+      }
+
+      const requestedMaterial = draft.materialName.trim().toLowerCase();
+      if (
+        !dataRef.current.materialCategories.some(
+          (category) => category.name.toLowerCase() === requestedMaterial,
+        )
+      ) {
+        notify('Please select a material from the list.', 'error');
         return false;
       }
 
@@ -660,7 +804,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const amountPaid = clampPaid(totalAmount, draft.amountPaid);
         const materialName = canonicalizeOption(
           draft.materialName,
-          uniqueStrings([...DEFAULT_MATERIAL_TYPES, ...previous.customMaterialTypes]),
+          previous.materialCategories.map((category) => category.name),
         );
         const unit = canonicalizeOption(
           draft.unit,
@@ -685,11 +829,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return {
           ...previous,
           materials: [record, ...previous.materials],
-          customMaterialTypes: addCustomToList(
-            previous.customMaterialTypes,
-            record.materialName,
-            DEFAULT_MATERIAL_TYPES,
-          ),
           customUnits: addCustomToList(previous.customUnits, record.unit, DEFAULT_UNITS),
         };
       }, 'Material expense saved');
@@ -713,6 +852,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
+      const requestedMaterial = draft.materialName.trim().toLowerCase();
+      if (
+        !dataRef.current.materialCategories.some(
+          (category) => category.name.toLowerCase() === requestedMaterial,
+        )
+      ) {
+        notify('Please select a material from the list.', 'error');
+        return false;
+      }
+
       return commit((previous) => {
         const existing = previous.materials.find((item) => item.id === id);
         if (!existing) return null;
@@ -725,7 +874,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const amountPaid = clampPaid(totalAmount, draft.amountPaid);
         const materialName = canonicalizeOption(
           draft.materialName,
-          uniqueStrings([...DEFAULT_MATERIAL_TYPES, ...previous.customMaterialTypes]),
+          previous.materialCategories.map((category) => category.name),
         );
         const unit = canonicalizeOption(
           draft.unit,
@@ -749,11 +898,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...previous,
           materials: previous.materials.map((item) =>
             item.id === id ? record : item,
-          ),
-          customMaterialTypes: addCustomToList(
-            previous.customMaterialTypes,
-            record.materialName,
-            DEFAULT_MATERIAL_TYPES,
           ),
           customUnits: addCustomToList(previous.customUnits, record.unit, DEFAULT_UNITS),
         };
@@ -1026,6 +1170,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addMaterial,
     updateMaterial,
     deleteMaterial,
+    addMaterialCategory,
+    updateMaterialCategory,
+    deleteMaterialCategory,
     addOther,
     updateOther,
     deleteOther,
